@@ -1,0 +1,14 @@
+fleets:
+  internal:
+    listeners:
+      test:
+        hostname: api.example.com
+        certificate: {enabled: false}
+        clientTrafficPolicy:
+          enabled: true
+          targetSelectors:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              matchLabels:
+                example.com/tls-baseline: strict
+              unknownField: rejected

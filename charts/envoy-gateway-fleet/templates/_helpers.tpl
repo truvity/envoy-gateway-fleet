@@ -114,6 +114,7 @@ shared with the consumer registry and supplies deterministic object names.
   "tls" (dict "secretName" "")
   "certificate" (dict
     "enabled" true
+    "name" ""
     "annotations" dict
     "labels" dict
     "duration" ""
@@ -129,6 +130,7 @@ shared with the consumer registry and supplies deterministic object names.
     "name" ""
     "annotations" dict
     "labels" dict
+    "targetSelectors" list
     "tls" (dict "minVersion" "1.3" "maxVersion" "1.3"))
   "infraHealth" (dict
     "enabled" false
@@ -146,6 +148,7 @@ shared with the consumer registry and supplies deterministic object names.
 {{- if not $l.gatewayName }}{{- $_ := set $l "gatewayName" (printf "%s-%s" .fleet.name .name) }}{{- end -}}
 {{- if not $l.listenerName }}{{- $_ := set $l "listenerName" (lower $l.protocol) }}{{- end -}}
 {{- if not $l.tls.secretName }}{{- $_ := set $l.tls "secretName" (printf "%s-tls" $l.gatewayName) }}{{- end -}}
+{{- if not $l.certificate.name }}{{- $_ := set $l.certificate "name" $l.tls.secretName }}{{- end -}}
 {{- if not $l.clientTrafficPolicy.name }}{{- $_ := set $l.clientTrafficPolicy "name" (printf "%s-tls" $l.gatewayName) }}{{- end -}}
 {{- $healthName := printf "%s-health" $l.gatewayName | trunc 63 | trimSuffix "-" -}}
 {{- if not $l.infraHealth.routeName }}{{- $_ := set $l.infraHealth "routeName" $healthName }}{{- end -}}

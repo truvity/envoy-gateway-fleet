@@ -1,4 +1,5 @@
 {{- $identities := dict -}}
+{{- $certificateSecrets := dict -}}
 {{- $claims := dict -}}
 {{- $exactHostnamePattern := `^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$` -}}
 {{- $wildcardHostnamePattern := `^\*\.([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)+[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$` -}}
@@ -15,6 +16,9 @@
 {{- $certificateIdentity := printf "Certificate/%s/%s" $f.namespace $h.tls.secretName -}}
 {{- if hasKey $identities $certificateIdentity }}{{- fail (printf "duplicate rendered identity %s" $certificateIdentity) }}{{- end -}}
 {{- $_ := set $identities $certificateIdentity (printf "fleets.%s.healthListener" $fleetName) -}}
+{{- $secretIdentity := printf "%s/%s" $f.namespace $h.tls.secretName -}}
+{{- if hasKey $certificateSecrets $secretIdentity }}{{- fail (printf "duplicate Certificate secret target %s (%s and fleets.%s.healthListener)" $secretIdentity (index $certificateSecrets $secretIdentity) $fleetName) }}{{- end -}}
+{{- $_ := set $certificateSecrets $secretIdentity (printf "fleets.%s.healthListener" $fleetName) -}}
 {{- end -}}
 {{- if $h.hostname -}}
 {{- $claim := printf "%s|%v|%s|%s" $fleetName $h.port $h.protocol (lower $h.hostname) -}}
@@ -35,6 +39,7 @@
 {{- if or (gt (len $value) 63) (not (regexMatch $dnsLabelPattern $value)) }}{{- fail (printf "%s.%s must be a valid DNS label no longer than 63 characters" $path $field) }}{{- end }}
 {{- end }}
 {{- if and (eq $l.protocol "HTTPS") (or (gt (len $l.tls.secretName) 63) (not (regexMatch $dnsLabelPattern $l.tls.secretName))) }}{{- fail (printf "%s.tls.secretName must be a valid DNS label no longer than 63 characters" $path) }}{{- end }}
+{{- if and (eq $l.protocol "HTTPS") $l.certificate.enabled (or (gt (len $l.certificate.name) 63) (not (regexMatch $dnsLabelPattern $l.certificate.name))) }}{{- fail (printf "%s.certificate.name must be a valid DNS label no longer than 63 characters" $path) }}{{- end }}
 {{- if and $l.clientTrafficPolicy.enabled (or (gt (len $l.clientTrafficPolicy.name) 63) (not (regexMatch $dnsLabelPattern $l.clientTrafficPolicy.name))) }}{{- fail (printf "%s.clientTrafficPolicy.name must be a valid DNS label no longer than 63 characters" $path) }}{{- end }}
 {{- if $l.infraHealth.enabled }}
 {{- range $field, $value := dict "routeName" $l.infraHealth.routeName "filterName" $l.infraHealth.filterName }}
@@ -75,9 +80,12 @@
 {{- if hasKey $claims $claim }}{{- fail (printf "duplicate listener claim for fleet %s port %v protocol %s hostname %s (%s and %s)" $fleetName $l.port $l.protocol $host (index $claims $claim) $path) }}{{- end }}
 {{- $_ := set $claims $claim $path }}
 {{- if and (eq $l.protocol "HTTPS") $l.certificate.enabled }}
-{{- $certificateIdentity := printf "Certificate/%s/%s" $l.namespace $l.tls.secretName }}
+{{- $certificateIdentity := printf "Certificate/%s/%s" $l.namespace $l.certificate.name }}
 {{- if hasKey $identities $certificateIdentity }}{{- fail (printf "duplicate rendered identity %s (%s and %s)" $certificateIdentity (index $identities $certificateIdentity) $path) }}{{- end }}
 {{- $_ := set $identities $certificateIdentity $path }}
+{{- $secretIdentity := printf "%s/%s" $l.namespace $l.tls.secretName }}
+{{- if hasKey $certificateSecrets $secretIdentity }}{{- fail (printf "duplicate Certificate secret target %s (%s and %s)" $secretIdentity (index $certificateSecrets $secretIdentity) $path) }}{{- end }}
+{{- $_ := set $certificateSecrets $secretIdentity $path }}
 {{- end }}
 {{- if $l.clientTrafficPolicy.enabled }}
 {{- $policyIdentity := printf "ClientTrafficPolicy/%s/%s" $l.namespace $l.clientTrafficPolicy.name }}
@@ -129,7 +137,7 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ $l.tls.secretName }}
+  name: {{ $l.certificate.name }}
   namespace: {{ $l.namespace }}
   {{- with $l.certificate.labels }}
   labels:
@@ -176,11 +184,16 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if $l.clientTrafficPolicy.targetSelectors }}
+  targetSelectors:
+    {{- toYaml $l.clientTrafficPolicy.targetSelectors | nindent 4 }}
+  {{- else }}
   targetRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
       name: {{ $l.gatewayName }}
       sectionName: {{ $l.listenerName }}
+  {{- end }}
   tls:
     {{- toYaml $l.clientTrafficPolicy.tls | nindent 4 }}
 {{- end }}

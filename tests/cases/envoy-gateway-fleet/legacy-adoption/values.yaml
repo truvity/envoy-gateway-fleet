@@ -1,0 +1,39 @@
+fleets:
+  internal:
+    gatewayClass:
+      enabled: false
+    envoyProxy:
+      enabled: false
+    listeners:
+      argocd:
+        namespace: argocd
+        gatewayName: argocd
+        annotations:
+          argocd.argoproj.io/sync-options: Prune=false
+          external-dns.alpha.kubernetes.io/hostname: argocd.internal.example.com
+        labels:
+          example.com/tls-baseline: strict
+        hostname: argocd.internal.example.com
+        tls:
+          secretName: argocd-server-tls
+        certificate:
+          name: argocd-server
+          annotations:
+            argocd.argoproj.io/sync-options: Prune=false
+          issuerRef:
+            name: internal-ca
+            kind: ClusterIssuer
+            group: cert-manager.io
+        clientTrafficPolicy:
+          enabled: true
+          name: tls-baseline
+          annotations:
+            argocd.argoproj.io/sync-options: Prune=false
+          targetSelectors:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              matchLabels:
+                example.com/tls-baseline: strict
+          tls:
+            minVersion: "1.3"
+            maxVersion: "1.3"
