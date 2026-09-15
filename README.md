@@ -105,8 +105,14 @@ fleets:
     listeners:
       private-entrypoint:
         namespace: application-gateway
+        gatewayName: private-entrypoint
+        labels:
+          example.com/tls-baseline: strict
         hostname: gateway.internal.example.com
+        tls:
+          secretName: private-entrypoint-tls
         certificate:
+          name: private-entrypoint-certificate
           issuerRef:
             name: application-server
             kind: Issuer
@@ -131,6 +137,11 @@ fleets:
               kind: GRPCRoute
         clientTrafficPolicy:
           enabled: true
+          targetSelectors:
+            - group: gateway.networking.k8s.io
+              kind: Gateway
+              matchLabels:
+                example.com/tls-baseline: strict
           tls: {minVersion: "1.3", maxVersion: "1.3"}
 ```
 
@@ -141,10 +152,19 @@ fleets:
 TCP/TLS/UDP route kinds on HTTP/HTTPS listeners. It cannot validate live
 Namespace labels, so GitOps must ensure a Selector admits intended namespaces.
 
-Registration keys and explicit namespace, Gateway, Secret, policy, health
-route/filter names are live Kubernetes identities. Change them only with an
-adoption plan. A namespaced Issuer must already exist in the listener namespace
-before enabling its Certificate.
+Registration keys and explicit namespace, Gateway, Certificate, Secret, policy,
+health route/filter names are live Kubernetes identities. `certificate.name`
+defaults to `tls.secretName` and changes only Certificate metadata identity;
+Certificate `spec.secretName` and the Gateway Secret reference always remain
+`tls.secretName`. Change identities only with an adoption plan. A namespaced
+Issuer must already exist in the listener namespace before enabling its
+Certificate.
+
+A ClientTrafficPolicy normally receives the generated listener-scoped
+`targetRefs`. Supplying `targetSelectors` replaces those refs with a non-empty
+strict array of Gateway selectors. Every item must use group
+`gateway.networking.k8s.io`, kind `Gateway`, and a non-empty `matchLabels` or
+`matchExpressions` selector with Kubernetes label-selector validation.
 
 ### Additional exposure Services
 

@@ -1,0 +1,9 @@
+fleets:
+  internal:
+    listeners:
+      test:
+        hostname: api.example.com
+        certificate:
+          name: Invalid_Name
+          issuerRef:
+            name: internal-ca

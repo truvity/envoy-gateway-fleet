@@ -1,0 +1,19 @@
+fleets:
+  internal:
+    listeners:
+      one:
+        hostname: one.example.com
+        tls:
+          secretName: one-tls
+        certificate:
+          name: shared-certificate
+          issuerRef:
+            name: internal-ca
+      two:
+        hostname: two.example.com
+        tls:
+          secretName: two-tls
+        certificate:
+          name: shared-certificate
+          issuerRef:
+            name: internal-ca
